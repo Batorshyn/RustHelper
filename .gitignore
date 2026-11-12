@@ -8,3 +8,5 @@ coverage/
 !.env.example
 .playwright-cli/
 .aistudio/
+release/
+public/assets/aistudio/
