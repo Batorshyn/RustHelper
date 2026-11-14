@@ -3,26 +3,44 @@
 
 @layer base {
   :root {
-    --font-display: 'Outfit', sans-serif;
+    --font-display: 'Barlow Condensed', sans-serif;
     --font-sans: 'Plus Jakarta Sans', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
+    color-scheme: dark;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #0b0d10;
-    color: #f1f5f9;
+    background-color: #0e1012;
+    color: #e6e8eb;
     margin: 0;
     -webkit-font-smoothing: antialiased;
+    letter-spacing: 0.005em;
   }
 
-  h1, h2, h3, h4, .font-display {
+  h1, h2, h3, .font-display {
     font-family: var(--font-display);
+    letter-spacing: 0.02em;
   }
 
   .font-mono, .tabular-nums {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
-}
 
+  /* Subtle industrial scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #121417;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2b313a;
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3d4552;
+  }
+}

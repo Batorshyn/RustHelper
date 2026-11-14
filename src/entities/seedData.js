@@ -4,20 +4,10 @@
  * статті довідника та схеми баз (Патч 2026.11)
  */
 
-import {
-  ICategory,
-  IArticle,
-  IRecycleItem,
-  IStructureType,
-  IExplosiveRecipe,
-  IBaseDesignBlueprint,
-  IWeaponTrainingData,
-} from './models';
-
 export const CURRENT_SERVER_PACKAGE_VERSION = 202611;
 export const CURRENT_PATCH_NAME = 'Rust Patch 2026.11 (World & Raid Update)';
 
-export const SEED_CATEGORIES: ICategory[] = [
+export const SEED_CATEGORIES = [
   {
     id: 1,
     name: 'Основи виживання',
@@ -26,7 +16,7 @@ export const SEED_CATEGORIES: ICategory[] = [
   },
   {
     id: 2,
-    name: 'Будівництво та укріплення баз',
+    name: 'Будівництво баз',
     slug: 'base-building',
     description: 'Механіка стабільності, соти (honeycomb), бункерні системи та захист від офлайн-рейдів.',
   },
@@ -44,19 +34,19 @@ export const SEED_CATEGORIES: ICategory[] = [
   },
   {
     id: 5,
-    name: 'Монументи та ключ-карти',
+    name: 'Монументи та карти',
     slug: 'monuments-puzzles',
     description: 'Головоломки із зеленими, синіми та червоними картками, запобіжники та таймінги крейтів.',
   },
   {
     id: 6,
-    name: 'Електрика та автоматизація',
+    name: 'Електрика та схеми',
     slug: 'electricity-automation',
     description: 'Схеми підключення автотурелей, датчиків HBHF, розумних перемикачів Rust+ та індустріальних конвеєрів.',
   },
 ];
 
-export const SEED_ARTICLES: IArticle[] = [
+export const SEED_ARTICLES = [
   {
     id: 101,
     title: 'Повний гайд для новачка: перші 60 хвилин після вайпу',
@@ -94,10 +84,10 @@ export const SEED_ARTICLES: IArticle[] = [
     readTimeMinutes: 4,
     summary: 'Як працює система прогресивного податку на утримання бази (Upkeep) та скільки годин будинок стоїть після знищення TC.',
     keyStats: [
-      { label: 'До 15 блоків', value: '10% вартості / доба' },
-      { label: '16–50 блоків', value: '15% вартості / доба' },
-      { label: '51–175 блоків', value: '20% вартості / доба' },
-      { label: '175+ блоків', value: '33% вартості / доба' },
+      { label: 'До 15 блоків', value: '10% / доба' },
+      { label: '16–50 блоків', value: '15% / доба' },
+      { label: '51–175 блоків', value: '20% / доба' },
+      { label: '175+ блоків', value: '33% / доба' },
     ],
     content: `Шафа інструментів (Tool Cupboard або TC) — це серце будь-якої бази в Rust. Вона виконує дві критичні функції: надає привілей будівництва (Building Privilege) в радіусі ~16 метрів (6 фундаментів) та утримує споруду від руйнування (Decay).
 
@@ -128,10 +118,10 @@ export const SEED_ARTICLES: IArticle[] = [
     readTimeMinutes: 6,
     summary: 'Як зрівняти вартість рейду по дверях і стінах за допомогою сотів та бункера стабільності з дахом.',
     keyStats: [
-      { label: '1 Кам’яна стіна', value: '4 Ракети / 2 C4' },
-      { label: '1 Металева стіна', value: '8 Ракет / 4 C4' },
-      { label: '1 МВК стіна', value: '15 Ракет / 8 C4' },
-      { label: 'Гаражні двері', value: '3 Ракети / 150 Патронів' },
+      { label: 'Кам’яна стіна', value: '4 Ракети / 2 C4' },
+      { label: 'Металева стіна', value: '8 Ракет / 4 C4' },
+      { label: 'МВК стіна', value: '15 Ракет / 8 C4' },
+      { label: 'Гаражні двері', value: '3 Ракети / 150 пат.' },
     ],
     content: `Головна помилка при будівництві бази в Rust — дисбаланс між міцністю стін і міцністю дверей. Одна кам'яна стіна тримає 4 ракети (500 HP), тоді як звичайні металеві двері падають від 1 ракети та 8 вибухових патронів (250 HP).
 
@@ -151,10 +141,10 @@ export const SEED_ARTICLES: IArticle[] = [
     readTimeMinutes: 4,
     summary: 'Точні коефіцієнти виходу скрапу, металу та МВК при переробці компонентів після оновлення переробників.',
     keyStats: [
-      { label: 'Радтаун (Небезпечна зона)', value: '60% вихід / Швидко (5с)' },
-      { label: 'Мирна зона (Safezone)', value: '40% вихід / Повільно (8с)' },
-      { label: 'Tech Trash (Радтаун)', value: '24 Скрапу + 1–2 МВК' },
-      { label: 'Rifle Body (Радтаун)', value: '30 Скрапу + 2 МВК' },
+      { label: 'Радтаун', value: '60% вихід / 5с цикл' },
+      { label: 'Мирна зона', value: '40% вихід / 8с цикл' },
+      { label: 'Tech Trash (Рад.)', value: '24 Скрапу + 1–2 МВК' },
+      { label: 'Rifle Body (Рад.)', value: '30 Скрапу + 2 МВК' },
     ],
     content: `Переробник (Recycler) — головне джерело металобрухту (Scrap), фрагментів металу, тканини та металу високої якості (HQM). Важливо враховувати різницю між переробниками у відкритих монументах та у безпечних зонах.
 
@@ -180,7 +170,7 @@ export const SEED_ARTICLES: IArticle[] = [
       { label: '1 Заряд C4', value: '2 200 Сірки' },
       { label: '1 Бойова Ракета', value: '1 400 Сірки' },
       { label: '1 Сумка (Satchel)', value: '480 Сірки' },
-      { label: '63 Вибухових патрони', value: '1 575 Сірки (Двері)' },
+      { label: '63 Вибухових 5.56', value: '1 575 Сірки' },
     ],
     content: `Успішний рейд у Rust починається з точного підрахунку сірки (Sulfur) та вибору правильного інструменту. Неправильний вибір вибухівки може коштувати вашій групі зайвих 5 000–10 000 сірки.
 
@@ -207,10 +197,10 @@ export const SEED_ARTICLES: IArticle[] = [
     readTimeMinutes: 5,
     summary: 'Де знайти кожну ключ-картку, скільки електричних запобіжників (Electric Fuse) брати із собою та який рівень радіації очікує всередині.',
     keyStats: [
-      { label: 'Зелена картка', value: 'Маяк, Заправка, Супермаркет' },
-      { label: 'Синя картка', value: 'Супутник, Гавань, Депо' },
-      { label: 'Червона картка', value: 'Аеродром, Водоочисна, Поїзди' },
-      { label: 'Елітні ящики', value: 'Launch Site, Нафтовишки, Воєнтунель' },
+      { label: 'Зелена картка', value: 'Маяк, Заправка' },
+      { label: 'Синя картка', value: 'Супутник, Порт' },
+      { label: 'Червона картка', value: 'Аеродром, Поїзди' },
+      { label: 'Елітні ящики', value: 'Launch Site, Oil Rig' },
     ],
     content: `Система головоломок на монументах дозволяє швидко здобути сотні скрапу та зброю високого рівня без тривалого фарму бочок вздовж доріг.
 
@@ -236,10 +226,10 @@ export const SEED_ARTICLES: IArticle[] = [
     readTimeMinutes: 5,
     summary: 'Надійна схема без втрати енергії з використанням Великого акумулятора, Вітряка та датчика присутності.',
     keyStats: [
-      { label: '1 Автотурель', value: '10 rWm споживання' },
-      { label: 'Великий акумулятор', value: '100 rWm вихід / 24 000 rWm ємність' },
-      { label: 'Сонячна панель', value: 'до 20 rWm вдень' },
-      { label: 'Вітряна турбіна', value: '60–150 rWm (залежить від висоти)' },
+      { label: '1 Автотурель', value: '10 rWm' },
+      { label: 'Великий акумулятор', value: '100 rWm вихід' },
+      { label: 'Сонячна панель', value: 'до 20 rWm' },
+      { label: 'Вітряна турбіна', value: '60–150 rWm' },
     ],
     content: `Автоматичні турелі (Auto Turrets) — найефективніший захист бази від онлайн та офлайн рейдів. Кожна турель споживає рівно 10 одиниць енергії (rWm).
 
@@ -252,7 +242,7 @@ export const SEED_ARTICLES: IArticle[] = [
   },
 ];
 
-export const SEED_RECYCLE_ITEMS: IRecycleItem[] = [
+export const SEED_RECYCLE_ITEMS = [
   {
     id: 1,
     name: 'Шестерні (Gears)',
@@ -410,7 +400,7 @@ export const SEED_RECYCLE_ITEMS: IRecycleItem[] = [
   },
 ];
 
-export const SEED_EXPLOSIVE_RECIPES: Record<string, IExplosiveRecipe> = {
+export const SEED_EXPLOSIVE_RECIPES = {
   c4: {
     id: 'c4',
     name: 'Заряд з таймером (C4)',
@@ -473,7 +463,7 @@ export const SEED_EXPLOSIVE_RECIPES: Record<string, IExplosiveRecipe> = {
   },
 };
 
-export const SEED_STRUCTURES: IStructureType[] = [
+export const SEED_STRUCTURES = [
   {
     id: 'wood_door',
     name: 'Дерев’яні двері (Wooden Door)',
@@ -681,7 +671,7 @@ export const SEED_STRUCTURES: IStructureType[] = [
   },
 ];
 
-export const SEED_BASE_BLUEPRINTS: IBaseDesignBlueprint[] = [
+export const SEED_BASE_BLUEPRINTS = [
   {
     id: 'solo_duo_2x1_honeycomb',
     name: 'Укріплений 2x1 Honeycomb + Airlock',
@@ -719,7 +709,7 @@ export const SEED_BASE_BLUEPRINTS: IBaseDesignBlueprint[] = [
   },
   {
     id: 'bunker_2x2_stability',
-    name: '2x2 Stability Bunker + Підстрілок (Shooting Floor)',
+    name: '2x2 Stability Bunker + Підстрілок',
     footprint: '2x2 + Бункер даху + Соти',
     groupSize: 'Тріо / Квад (2–4 гравці)',
     buildCost: {
@@ -755,7 +745,7 @@ export const SEED_BASE_BLUEPRINTS: IBaseDesignBlueprint[] = [
   },
   {
     id: 'clan_multi_tc_compound',
-    name: 'Multi-TC Фортеця з зовнішніми шафами та Компаундом',
+    name: 'Multi-TC Фортеця + Компаунд',
     footprint: '3x3 Core + 4 External TCs',
     groupSize: 'Група / Клан (5–8 гравців)',
     buildCost: {
@@ -791,7 +781,7 @@ export const SEED_BASE_BLUEPRINTS: IBaseDesignBlueprint[] = [
   },
 ];
 
-export const SEED_WEAPONS_TRAINING: IWeaponTrainingData[] = [
+export const SEED_WEAPONS_TRAINING = [
   {
     id: 'ak47',
     name: 'Штурмова гвинтівка (AK-47)',

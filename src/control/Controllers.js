@@ -1,29 +1,15 @@
 /**
  * Пакет Control & Boundaries — Керування локальним кешем, Довідником, Пошуком та Синхронізацією
- * Реалізує класи керування та взаємодії з сервером:
- * - CacheManager <<Control>> (локальне збереження даних на пристрої)
- * - ServerApiClient <<Boundary>> (інтерфейс із сервером C# / REST API)
- * - SyncManager <<Control>> (синхронізація даних з сервером та керування станом пакета даних)
- * - CatalogController <<Control>> (перегляд довідника за категоріями та збереження статей для офлайн-доступу)
- * - SearchController <<Control>> (пошук матеріалів у локальному індексі)
- * - ContentManager <<Control>> (оновлення довідкових даних на сервері)
  */
 
-import {
-  ICategory,
-  IArticle,
-  IDataPackage,
-  PackageState,
-  IRecycleItem,
-} from '../entities/models';
 import {
   SEED_CATEGORIES,
   SEED_ARTICLES,
   SEED_RECYCLE_ITEMS,
   CURRENT_SERVER_PACKAGE_VERSION,
   CURRENT_PATCH_NAME,
-} from '../entities/seedData';
-import { InputValidator, IValidationOutcome } from './InputValidator';
+} from '../entities/seedData.js';
+import { InputValidator } from './InputValidator.js';
 
 const STORAGE_KEYS = {
   ARTICLES: 'rusthelper_local_articles_v1',
@@ -31,28 +17,13 @@ const STORAGE_KEYS = {
   RECYCLE_RULES: 'rusthelper_recycle_rules_v1',
 };
 
-/**
- * Клас CacheManager <<Control>>
- * Забезпечує локальне збереження індексу довідника, збережених статей та правил калькуляторів
- * на пристрої користувача (працює і в браузері через localStorage, і в Node.js для unit-тестів)
- */
 export class CacheManager {
-  private memoryArticles: IArticle[];
-  private memoryVersion: number;
-  private memoryPatchName: string;
-  private memoryLastSync: string;
-  private memoryRecycleItems: IRecycleItem[];
-
   constructor() {
-    this.memoryArticles = this.loadFromStorage<IArticle[]>(
+    this.memoryArticles = this.loadFromStorage(
       STORAGE_KEYS.ARTICLES,
       SEED_ARTICLES.map((a) => ({ ...a }))
     );
-    const meta = this.loadFromStorage<{
-      version: number;
-      patchName: string;
-      lastSyncedAt: string;
-    }>(STORAGE_KEYS.PACKAGE_META, {
+    const meta = this.loadFromStorage(STORAGE_KEYS.PACKAGE_META, {
       version: CURRENT_SERVER_PACKAGE_VERSION,
       patchName: CURRENT_PATCH_NAME,
       lastSyncedAt: '2026-11-12 10:00',
@@ -60,18 +31,18 @@ export class CacheManager {
     this.memoryVersion = meta.version;
     this.memoryPatchName = meta.patchName;
     this.memoryLastSync = meta.lastSyncedAt;
-    this.memoryRecycleItems = this.loadFromStorage<IRecycleItem[]>(
+    this.memoryRecycleItems = this.loadFromStorage(
       STORAGE_KEYS.RECYCLE_RULES,
       SEED_RECYCLE_ITEMS.map((r) => ({ ...r }))
     );
   }
 
-  private loadFromStorage<T>(key: string, fallback: T): T {
+  loadFromStorage(key, fallback) {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         const raw = window.localStorage.getItem(key);
         if (raw) {
-          return JSON.parse(raw) as T;
+          return JSON.parse(raw);
         }
         window.localStorage.setItem(key, JSON.stringify(fallback));
       }
@@ -81,7 +52,7 @@ export class CacheManager {
     return fallback;
   }
 
-  private saveToStorage<T>(key: string, value: T): void {
+  saveToStorage(key, value) {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.setItem(key, JSON.stringify(value));
@@ -91,33 +62,33 @@ export class CacheManager {
     }
   }
 
-  public getCategories(): ICategory[] {
+  getCategories() {
     return SEED_CATEGORIES;
   }
 
-  public getAllArticles(): IArticle[] {
+  getAllArticles() {
     return [...this.memoryArticles];
   }
 
-  public getArticles(categoryId: number): IArticle[] {
+  getArticles(categoryId) {
     if (!categoryId || categoryId === 0) {
       return [...this.memoryArticles];
     }
     return this.memoryArticles.filter((a) => a.categoryId === categoryId);
   }
 
-  public getArticle(articleId: number): IArticle | undefined {
+  getArticle(articleId) {
     return this.memoryArticles.find((a) => a.id === articleId);
   }
 
-  public isAvailableOffline(articleId: number): boolean {
+  isAvailableOffline(articleId) {
     const art = this.getArticle(articleId);
     return Boolean(art && art.isOffline);
   }
 
-  public saveArticle(article: IArticle): IArticle {
+  saveArticle(article) {
     const idx = this.memoryArticles.findIndex((a) => a.id === article.id);
-    const updated: IArticle = { ...article };
+    const updated = { ...article };
     if (idx >= 0) {
       this.memoryArticles[idx] = updated;
     } else {
@@ -127,15 +98,15 @@ export class CacheManager {
     return updated;
   }
 
-  public toggleOfflineStatus(articleId: number, forceOffline?: boolean): IArticle | undefined {
+  toggleOfflineStatus(articleId, forceOffline) {
     const art = this.getArticle(articleId);
     if (!art) return undefined;
     const nextState = forceOffline !== undefined ? forceOffline : !art.isOffline;
-    const updated: IArticle = { ...art, isOffline: nextState };
+    const updated = { ...art, isOffline: nextState };
     return this.saveArticle(updated);
   }
 
-  public findInLocalIndex(normalizedQuery: string): IArticle[] {
+  findInLocalIndex(normalizedQuery) {
     if (!normalizedQuery) return [...this.memoryArticles];
     const terms = normalizedQuery.split(/\s+/).filter(Boolean);
     return this.memoryArticles.filter((article) => {
@@ -144,8 +115,7 @@ export class CacheManager {
     });
   }
 
-  public replaceData(pkg: IDataPackage): void {
-    // Зберігаємо локальні офлайн-прапорці користувача при оновленні пакета з сервера
+  replaceData(pkg) {
     const offlineIds = new Set(
       this.memoryArticles.filter((a) => a.isOffline).map((a) => a.id)
     );
@@ -165,11 +135,11 @@ export class CacheManager {
     });
   }
 
-  public getVersion(): number {
+  getVersion() {
     return this.memoryVersion;
   }
 
-  public setVersion(newVersion: number, patchName = CURRENT_PATCH_NAME): void {
+  setVersion(newVersion, patchName = CURRENT_PATCH_NAME) {
     this.memoryVersion = newVersion;
     this.memoryPatchName = patchName;
     this.memoryLastSync = new Date().toLocaleString('uk-UA', {
@@ -186,14 +156,7 @@ export class CacheManager {
     });
   }
 
-  public getPackageSummary(): {
-    version: number;
-    patchName: string;
-    lastSyncedAt: string;
-    offlineCount: number;
-    totalCount: number;
-    sizeMb: number;
-  } {
+  getPackageSummary() {
     const offlineCount = this.memoryArticles.filter((a) => a.isOffline).length;
     return {
       version: this.memoryVersion,
@@ -205,11 +168,11 @@ export class CacheManager {
     };
   }
 
-  public getRecycleItems(): IRecycleItem[] {
+  getRecycleItems() {
     return [...this.memoryRecycleItems];
   }
 
-  public updateRecycleCoefficient(itemId: number, resourceId: string, newAmount: number): boolean {
+  updateRecycleCoefficient(itemId, resourceId, newAmount) {
     const item = this.memoryRecycleItems.find((i) => i.id === itemId);
     if (!item) return false;
     const yieldRule = item.yields.find((y) => y.resourceId === resourceId);
@@ -220,31 +183,29 @@ export class CacheManager {
   }
 }
 
-/**
- * Клас ServerApiClient <<Boundary>>
- * Відповідає за HTTP-обмін із сервером даних (RustHelperAPI) або локальну імітацію при відсутності мережі
- */
 export class ServerApiClient {
-  private simulatedOffline = false;
-  private simulatedServerVersion = CURRENT_SERVER_PACKAGE_VERSION;
-
-  public setSimulatedOffline(offline: boolean): void {
-    this.simulatedOffline = offline;
+  constructor() {
+    this.simulatedOffline = false;
+    this.simulatedServerVersion = CURRENT_SERVER_PACKAGE_VERSION;
   }
 
-  public isSimulatedOffline(): boolean {
+  setSimulatedOffline(offline) {
+    this.simulatedOffline = Boolean(offline);
+  }
+
+  isSimulatedOffline() {
     return this.simulatedOffline;
   }
 
-  public setSimulatedServerVersion(version: number): void {
+  setSimulatedServerVersion(version) {
     this.simulatedServerVersion = version;
   }
 
-  public getSimulatedServerVersion(): number {
+  getSimulatedServerVersion() {
     return this.simulatedServerVersion;
   }
 
-  public async get<T>(endpoint: string): Promise<T> {
+  async get(endpoint) {
     if (this.simulatedOffline) {
       throw new Error('OFFLINE_MODE: Відсутнє підключення до сервера RustHelperAPI.');
     }
@@ -253,11 +214,11 @@ export class ServerApiClient {
       if (typeof window !== 'undefined' && typeof fetch === 'function') {
         const res = await fetch(`/api${endpoint}`);
         if (res.ok) {
-          return (await res.json()) as T;
+          return await res.json();
         }
       }
     } catch {
-      // Fallback to in-process response if backend is unreachable in unit test
+      // Fallback to in-process response
     }
 
     if (endpoint === '/packages/version') {
@@ -267,7 +228,7 @@ export class ServerApiClient {
           this.simulatedServerVersion > CURRENT_SERVER_PACKAGE_VERSION
             ? `Rust Patch ${this.simulatedServerVersion} (Hotfix)`
             : CURRENT_PATCH_NAME,
-      } as unknown as T;
+      };
     }
 
     if (endpoint === '/packages/latest') {
@@ -280,24 +241,24 @@ export class ServerApiClient {
         sizeMb: 2.85,
         lastSyncedAt: new Date().toLocaleString('uk-UA'),
         articles: SEED_ARTICLES,
-      } as unknown as T;
+      };
     }
 
     if (endpoint.startsWith('/articles/')) {
       const id = Number(endpoint.replace('/articles/', ''));
       const found = SEED_ARTICLES.find((a) => a.id === id);
       if (!found) throw new Error('Статтю не знайдено на сервері');
-      return found as unknown as T;
+      return found;
     }
 
     if (endpoint === '/articles') {
-      return SEED_ARTICLES as unknown as T;
+      return SEED_ARTICLES;
     }
 
     throw new Error(`Невідомий ендпоінт: ${endpoint}`);
   }
 
-  public async put<T>(endpoint: string, data: unknown): Promise<T> {
+  async put(endpoint, data) {
     if (this.simulatedOffline) {
       throw new Error('OFFLINE_MODE: Неможливо оновити серверні дані без інтернету.');
     }
@@ -310,63 +271,45 @@ export class ServerApiClient {
           body: JSON.stringify(data),
         });
         if (res.ok) {
-          return (await res.json()) as T;
+          return await res.json();
         }
       }
     } catch {
       // Fallback in unit tests
     }
 
-    return { success: true, data } as unknown as T;
+    return { success: true, data };
   }
-}
-
-/**
- * Клас SyncManager <<Control>>
- * Відповідає за синхронізацію даних з сервером та керування станом локального пакета даних
- */
-export interface ISyncResult {
-  status: 'updated' | 'up-to-date' | 'offline-error';
-  packageState: PackageState;
-  localVersion: number;
-  serverVersion?: number;
-  message: string;
 }
 
 export class SyncManager {
-  private cacheManager: CacheManager;
-  private apiClient: ServerApiClient;
-  private currentPackageState: PackageState = 'OfflineAvailable';
-
-  constructor(cacheManager: CacheManager, apiClient: ServerApiClient) {
+  constructor(cacheManager, apiClient) {
     this.cacheManager = cacheManager;
     this.apiClient = apiClient;
+    this.currentPackageState = 'OfflineAvailable';
   }
 
-  public getPackageState(): PackageState {
+  getPackageState() {
     return this.currentPackageState;
   }
 
-  public markServerNewVersionAvailable(): number {
+  markServerNewVersionAvailable() {
     const nextVer = this.cacheManager.getVersion() + 1;
     this.apiClient.setSimulatedServerVersion(nextVer);
     this.currentPackageState = 'Outdated';
     return nextVer;
   }
 
-  public checkConnection(): boolean {
+  checkConnection() {
     return !this.apiClient.isSimulatedOffline();
   }
 
-  public async download(articleId: number): Promise<IArticle> {
-    const serverArticle = await this.apiClient.get<IArticle>(`/articles/${articleId}`);
+  async download(articleId) {
+    const serverArticle = await this.apiClient.get(`/articles/${articleId}`);
     return this.cacheManager.saveArticle(serverArticle);
   }
 
-  /**
-   * UC8: Порівнює версію пакета даних на пристрої й на сервері, за потреби завантажує оновлення
-   */
-  public async sync(): Promise<ISyncResult> {
+  async sync() {
     if (!this.checkConnection()) {
       return {
         status: 'offline-error',
@@ -378,22 +321,19 @@ export class SyncManager {
 
     try {
       this.currentPackageState = 'Downloading';
-      const versionInfo = await this.apiClient.get<{ version: number; patchName: string }>(
-        '/packages/version'
-      );
+      const versionInfo = await this.apiClient.get('/packages/version');
       const localVersion = this.cacheManager.getVersion();
 
       if (versionInfo.version > localVersion) {
-        const latestPackage = await this.apiClient.get<IDataPackage>('/packages/latest');
+        const latestPackage = await this.apiClient.get('/packages/latest');
         const currentArticles = this.cacheManager.getAllArticles();
-        // Об'єднуємо серверні статті та локально додані адміністратором статті
-        const mergedMap = new Map<number, IArticle>();
+        const mergedMap = new Map();
         for (const a of latestPackage.articles) mergedMap.set(a.id, a);
         for (const localArt of currentArticles) {
           if (!mergedMap.has(localArt.id)) {
             mergedMap.set(localArt.id, localArt);
           } else if (localArt.isOffline) {
-            mergedMap.set(localArt.id, { ...mergedMap.get(localArt.id)!, isOffline: true });
+            mergedMap.set(localArt.id, { ...mergedMap.get(localArt.id), isOffline: true });
           }
         }
 
@@ -412,7 +352,7 @@ export class SyncManager {
           packageState: 'OfflineAvailable',
           localVersion: versionInfo.version,
           serverVersion: versionInfo.version,
-          message: `Пакет даних успішно оновлено до версії v${versionInfo.version} (${versionInfo.patchName}).`,
+          message: `Базу даних оновлено до версії v${versionInfo.version} (${versionInfo.patchName}).`,
         };
       }
 
@@ -422,7 +362,7 @@ export class SyncManager {
         packageState: 'OfflineAvailable',
         localVersion,
         serverVersion: versionInfo.version,
-        message: `Локальна база даних актуальна (версія v${localVersion}). Оновлення не потрібне.`,
+        message: `Локальна база даних актуальна (v${localVersion}).`,
       };
     } catch {
       this.currentPackageState = 'OfflineAvailable';
@@ -430,42 +370,23 @@ export class SyncManager {
         status: 'offline-error',
         packageState: 'OfflineAvailable',
         localVersion: this.cacheManager.getVersion(),
-        message: 'Не вдалося з’єднатися із сервером. Доступні локально збережені матеріали.',
+        message: 'Не вдалося з’єднатися із сервером. Доступні збережені матеріали.',
       };
     }
   }
 }
 
-/**
- * Клас CatalogController <<Control>>
- * Відповідає за перегляд довідника за категоріями та збереження статей для офлайн-доступу
- */
-export interface IOpenArticleResult {
-  success: boolean;
-  source: 'local-cache' | 'server-download' | 'offline-blocked';
-  article?: IArticle;
-  errorMessage?: string;
-}
-
 export class CatalogController {
-  private cacheManager: CacheManager;
-  private syncManager: SyncManager;
-
-  constructor(cacheManager: CacheManager, syncManager: SyncManager) {
+  constructor(cacheManager, syncManager) {
     this.cacheManager = cacheManager;
     this.syncManager = syncManager;
   }
 
-  public openCategory(categoryId: number): IArticle[] {
+  openCategory(categoryId) {
     return this.cacheManager.getArticles(categoryId);
   }
 
-  /**
-   * Перевіряє чи стаття збережена для офлайн-доступу.
-   * Якщо гравець онлайн — стаття відкривається завжди (або довантажується з сервера).
-   * Якщо гравець офлайн і стаття НЕ збережена в офлайн-кеш — повертає повідомлення «Потрібне підключення до інтернету».
-   */
-  public async openArticle(articleId: number): Promise<IOpenArticleResult> {
+  async openArticle(articleId) {
     const isOfflineSaved = this.cacheManager.isAvailableOffline(articleId);
     const localArticle = this.cacheManager.getArticle(articleId);
 
@@ -477,7 +398,6 @@ export class CatalogController {
       };
     }
 
-    // Стаття не збережена офлайн — перевіряємо з'єднання з сервером
     if (this.syncManager.checkConnection()) {
       if (localArticle) {
         return {
@@ -502,7 +422,6 @@ export class CatalogController {
       }
     }
 
-    // Гравець у режимі Офлайн, і стаття не була збережена для офлайн-доступу (UC1 alt: немає з'єднання)
     return {
       success: false,
       source: 'offline-blocked',
@@ -511,33 +430,21 @@ export class CatalogController {
     };
   }
 
-  /**
-   * UC3: Зберегти статтю для офлайн-доступу (або видалити з офлайн-кешу)
-   */
-  public saveForOffline(articleId: number, makeOffline = true): IArticle | undefined {
+  saveForOffline(articleId, makeOffline = true) {
     return this.cacheManager.toggleOfflineStatus(articleId, makeOffline);
   }
 }
 
-/**
- * Клас SearchController <<Control>>
- * Виконує пошук матеріалів по локальному індексу без потреби в інтернеті
- */
 export class SearchController {
-  private cacheManager: CacheManager;
-
-  constructor(cacheManager: CacheManager) {
+  constructor(cacheManager) {
     this.cacheManager = cacheManager;
   }
 
-  public normalizeQuery(query: string): string {
-    return (query || '')
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, ' ');
+  normalizeQuery(query) {
+    return (query || '').trim().toLowerCase().replace(/\s+/g, ' ');
   }
 
-  public search(query: string, categoryId = 0): IArticle[] {
+  search(query, categoryId = 0) {
     const normalized = this.normalizeQuery(query);
     const found = this.cacheManager.findInLocalIndex(normalized);
     if (categoryId > 0) {
@@ -547,44 +454,19 @@ export class SearchController {
   }
 }
 
-/**
- * Клас ContentManager <<Control>>
- * Відповідає за оновлення довідкових даних на сервері для ролі Адміністратор
- */
 export class ContentManager {
-  private cacheManager: CacheManager;
-  private apiClient: ServerApiClient;
-  private validator: InputValidator;
-
-  constructor(
-    cacheManager: CacheManager,
-    apiClient: ServerApiClient,
-    validator: InputValidator = new InputValidator()
-  ) {
+  constructor(cacheManager, apiClient, validator = new InputValidator()) {
     this.cacheManager = cacheManager;
     this.apiClient = apiClient;
     this.validator = validator;
   }
 
-  public loadContent(): IArticle[] {
+  loadContent() {
     return this.cacheManager.getAllArticles();
   }
 
-  public async updateArticle(data: {
-    id?: number;
-    title: string;
-    summary: string;
-    content: string;
-    categoryId: number;
-    patchVersion: string;
-    isOffline?: boolean;
-    keyStats?: { label: string; value: string }[];
-  }): Promise<{
-    isValid: boolean;
-    errorMessage?: string;
-    savedArticle?: IArticle;
-  }> {
-    const check: IValidationOutcome = this.validator.validateArticleInput(data);
+  async updateArticle(data) {
+    const check = this.validator.validateArticleInput(data);
     if (!check.isValid) {
       return {
         isValid: false,
@@ -595,7 +477,7 @@ export class ContentManager {
     const articleId = data.id || Date.now();
     const readTimeMinutes = Math.max(2, Math.ceil(data.content.trim().split(/\s+/).length / 120));
 
-    const newArticle: IArticle = {
+    const newArticle = {
       id: articleId,
       title: data.title.trim(),
       summary: data.summary.trim(),
@@ -604,10 +486,13 @@ export class ContentManager {
       patchVersion: data.patchVersion.trim() || '2026.11',
       isOffline: data.isOffline ?? true,
       readTimeMinutes,
-      keyStats: data.keyStats && data.keyStats.length > 0 ? data.keyStats : [
-        { label: 'Патч', value: data.patchVersion.trim() || '2026.11' },
-        { label: 'Статус', value: 'Перевірено Адміністратором' },
-      ],
+      keyStats:
+        data.keyStats && data.keyStats.length > 0
+          ? data.keyStats
+          : [
+              { label: 'Патч', value: data.patchVersion.trim() || '2026.11' },
+              { label: 'Статус', value: 'Перевірено редактором' },
+            ],
       status: 'published',
     };
 

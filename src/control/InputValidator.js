@@ -3,18 +3,8 @@
  * Спільний предок BaseCalculator та клас InputValidator <<Control>>
  */
 
-export interface IValidationOutcome {
-  isValid: boolean;
-  errorMessage?: string;
-  normalizedNumber?: number;
-}
-
-/**
- * Клас InputValidator <<Control>>
- * Блокує некоректні значення у калькуляторах та перевіряє статті довідника перед публікацією
- */
 export class InputValidator {
-  public validate(value: string | number): boolean {
+  validate(value) {
     if (value === null || value === undefined) return false;
     const str = String(value).trim();
     if (str.length === 0) return false;
@@ -22,7 +12,7 @@ export class InputValidator {
     return Number.isFinite(num) && Number.isInteger(num);
   }
 
-  public checkRange(value: string | number, min = 1, max = 10000): IValidationOutcome {
+  checkRange(value, min = 1, max = 10000) {
     const str = String(value ?? '').trim();
     if (!str) {
       return {
@@ -66,13 +56,7 @@ export class InputValidator {
     };
   }
 
-  public validateArticleInput(data: {
-    title?: string;
-    summary?: string;
-    content?: string;
-    categoryId?: number;
-    patchVersion?: string;
-  }): IValidationOutcome {
+  validateArticleInput(data) {
     const title = (data.title || '').trim();
     const summary = (data.summary || '').trim();
     const content = (data.content || '').trim();
@@ -98,12 +82,16 @@ export class InputValidator {
       };
     }
 
-    // Перевірка на відсутність шкідливого вмісту (XSS / скрипти)
     const dangerousPattern = /<script\b[^>]*>|javascript:|onerror=|onload=/i;
-    if (dangerousPattern.test(title) || dangerousPattern.test(summary) || dangerousPattern.test(content)) {
+    if (
+      dangerousPattern.test(title) ||
+      dangerousPattern.test(summary) ||
+      dangerousPattern.test(content)
+    ) {
       return {
         isValid: false,
-        errorMessage: 'Виявлено заборонені керуючі теги або скрипт. Збереження заблоковано модулем безпеки.',
+        errorMessage:
+          'Виявлено заборонені керуючі теги або скрипт. Збереження заблоковано модулем безпеки.',
       };
     }
 
@@ -111,18 +99,12 @@ export class InputValidator {
   }
 }
 
-/**
- * Абстрактний клас BaseCalculator <<Control>>
- * Спільний предок для RaidCalculator та RecycleCalculator
- */
-export abstract class BaseCalculator {
-  protected validator: InputValidator;
-
-  constructor(validator: InputValidator = new InputValidator()) {
+export class BaseCalculator {
+  constructor(validator = new InputValidator()) {
     this.validator = validator;
   }
 
-  public checkInput(value: string | number, min = 1, max = 5000): IValidationOutcome {
+  checkInput(value, min = 1, max = 5000) {
     return this.validator.checkRange(value, min, max);
   }
 }

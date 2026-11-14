@@ -1,27 +1,15 @@
 /**
  * C# (.NET 10) Вихідний код бекенду та модулів бізнес-логіки RustHelper
- * Включає:
- * 1. RustHelper.Entities (Article.cs, StructureType.cs, ExplosiveRecipe.cs, DataPackage.cs)
- * 2. RustHelper.Control (BaseCalculator.cs, InputValidator.cs, RecycleCalculator.cs, RaidCalculator.cs, SyncManager.cs)
- * 3. RustHelper.ServerAPI (Program.cs — ASP.NET Core Minimal API для синхронізації довідника та схем баз)
  */
 
-export interface ICSharpSourceFile {
-  id: string;
-  fileName: string;
-  packageLayer: 'Entities' | 'Control' | 'Boundaries / API';
-  umlStereotype: '<<Entity>>' | '<<Control>>' | '<<Boundary>>';
-  description: string;
-  code: string;
-}
-
-export const CSHARP_BACKEND_FILES: ICSharpSourceFile[] = [
+export const CSHARP_BACKEND_FILES = [
   {
     id: 'entities_cs',
     fileName: 'RustHelper.Core/Entities/DomainEntities.cs',
     packageLayer: 'Entities',
     umlStereotype: '<<Entity>>',
-    description: 'Класи-сутності предметної області (Article, Category, DataPackage, Item, RecycleRule, StructureType, ExplosiveRecipe, CalculationResult) із закритими атрибутами (-) та відкритими методами (+).',
+    description:
+      'Класи-сутності предметної області (Article, Category, DataPackage, Item, RecycleRule, StructureType, ExplosiveRecipe, CalculationResult) із закритими атрибутами (-) та відкритими методами (+).',
     code: `using System;
 using System.Collections.Generic;
 
@@ -134,7 +122,8 @@ public record ExplosiveRecipe(
     fileName: 'RustHelper.Core/Control/Calculators.cs',
     packageLayer: 'Control',
     umlStereotype: '<<Control>>',
-    description: 'Керуючі класи InputValidator, BaseCalculator, RecycleCalculator та RaidCalculator. Час виконання розрахунку < 5 мс.',
+    description:
+      'Керуючі класи InputValidator, BaseCalculator, RecycleCalculator та RaidCalculator. Час виконання розрахунку < 5 мс.',
     code: `using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -143,9 +132,6 @@ using RustHelper.Core.Entities;
 
 namespace RustHelper.Core.Control;
 
-/// <summary>
-/// Клас InputValidator <<Control>> (UC6 «Перевірити введені дані»)
-/// </summary>
 public class InputValidator
 {
     public bool Validate(string value)
@@ -160,9 +146,6 @@ public class InputValidator
     }
 }
 
-/// <summary>
-/// Базовий клас BaseCalculator <<Control>> 
-/// </summary>
 public abstract class BaseCalculator
 {
     protected readonly InputValidator Validator = new();
@@ -176,9 +159,6 @@ public abstract class BaseCalculator
     }
 }
 
-/// <summary>
-/// Калькулятор переробки ресурсів RecycleCalculator <<Control>> (UC4)
-/// </summary>
 public class RecycleCalculator : BaseCalculator
 {
     private readonly List<RecycleRule> _rules;
@@ -207,12 +187,6 @@ public class RecycleCalculator : BaseCalculator
     }
 }
 
-/// <summary>
-/// Калькулятор вибухівки та сировини для рейду RaidCalculator <<Control>> (UC5)
-/// Стан «Обчислення» складається з:
-/// 1) ComputeExplosives(blocks) — Визначення комплексу вибухівки
-/// 2) ComputeRawResources() — Розрахунок потреби базової сировини
-/// </summary>
 public class RaidCalculator : BaseCalculator
 {
     private readonly Dictionary<string, StructureType> _structures;
@@ -239,7 +213,7 @@ public class RaidCalculator : BaseCalculator
         var c4Recipe = _recipes["c4"];
         int minSulfur = totalC4 * c4Recipe.SulfurPerUnit;
         int minCharcoal = totalC4 * c4Recipe.CharcoalPerUnit;
-        sw.Stop(); // Середній час виконання < 0.2 мс
+        sw.Stop();
 
         return (totalRockets, totalC4, minSulfur, minCharcoal);
     }
@@ -250,7 +224,8 @@ public class RaidCalculator : BaseCalculator
     fileName: 'RustHelper.ServerAPI/Program.cs',
     packageLayer: 'Boundaries / API',
     umlStereotype: '<<Boundary>>',
-    description: 'ASP.NET Core (.NET 10) вебсервер RustHelperAPI.dll, який обслуговує запити UC1 (довантаження статей), UC7 (панель адміністратора PUT /articles/{id}) та UC8 (синхронізація версій пакета даних).',
+    description:
+      'ASP.NET Core (.NET 10) вебсервер RustHelperAPI.dll, який обслуговує довантаження статей, редагування та синхронізацію версій пакета даних.',
     code: `using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
@@ -263,14 +238,12 @@ builder.Services.AddCors();
 var app = builder.Build();
 app.UseCors(policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
-// UC8: Перевірка актуальної версії пакета даних на сервері
 app.MapGet("/api/packages/version", () => Results.Ok(new
 {
     version = 202611,
     patchName = "Rust Patch 2026.11 (World & Raid Update)"
 }));
 
-// UC8: Завантаження останнього пакета довідкових даних для офлайн-кешу (CacheManager)
 app.MapGet("/api/packages/latest", () => Results.Ok(new
 {
     version = 202611,
@@ -278,13 +251,11 @@ app.MapGet("/api/packages/latest", () => Results.Ok(new
     status = "OfflineAvailable"
 }));
 
-// UC1: Завантаження повного тексту статті за ID, якщо її немає в локальній БД
 app.MapGet("/api/articles/{id:int}", (int id) =>
 {
     return Results.Ok(new { id, status = "FetchedFromRustHelperServer" });
 });
 
-// UC7: Оновлення або додавання статті адміністратором з попередньою валідацією InputValidator
 app.MapPut("/api/articles/{id:int}", (int id, ArticleUpdateDto dto) =>
 {
     if (string.IsNullOrWhiteSpace(dto.Title) || dto.Title.Length < 5)

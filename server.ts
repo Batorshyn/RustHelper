@@ -6,8 +6,7 @@ import {
   SEED_ARTICLES,
   CURRENT_SERVER_PACKAGE_VERSION,
   CURRENT_PATCH_NAME,
-} from './src/entities/seedData';
-import { IArticle } from './src/entities/models';
+} from './src/entities/seedData.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,12 +17,10 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Серверна БД довідника RustHelperAPI (Синхронізується з локальним кешем клієнта за UC8 та оновлюється за UC7)
   let serverVersion = CURRENT_SERVER_PACKAGE_VERSION;
   let serverPatchName = CURRENT_PATCH_NAME;
-  const serverArticles: IArticle[] = SEED_ARTICLES.map((a) => ({ ...a }));
+  const serverArticles = SEED_ARTICLES.map((a) => ({ ...a }));
 
-  // UC8: Отримання актуальної версії пакета даних на сервері
   app.get('/api/packages/version', (_req, res) => {
     res.json({
       version: serverVersion,
@@ -31,7 +28,6 @@ async function startServer() {
     });
   });
 
-  // UC8: Завантаження актуального пакета довідкових даних (DataPackage)
   app.get('/api/packages/latest', (_req, res) => {
     res.json({
       version: serverVersion,
@@ -42,12 +38,10 @@ async function startServer() {
     });
   });
 
-  // UC1 & UC7: Список усіх статей на сервері
   app.get('/api/articles', (_req, res) => {
     res.json(serverArticles);
   });
 
-  // UC1: Завантаження окремої статті з сервера за ID, коли її немає у локальному офлайн-кеші
   app.get('/api/articles/:id', (req, res) => {
     const id = Number(req.params.id);
     const article = serverArticles.find((a) => a.id === id);
@@ -58,13 +52,12 @@ async function startServer() {
     res.json(article);
   });
 
-  // UC7: Оновлення або створення статті Адміністратором (PUT /api/articles/:id)
   app.put('/api/articles/:id', (req, res) => {
     const id = Number(req.params.id);
-    const payload = req.body as IArticle;
+    const payload = req.body;
 
-    if (!payload || !payload.title || payload.title.trim().length < 5) {
-      res.status(400).json({ error: 'Некоректні дані статті (InputValidator)' });
+    if (!payload || !payload.title || String(payload.title).trim().length < 5) {
+      res.status(400).json({ error: 'Некоректні дані статті' });
       return;
     }
 

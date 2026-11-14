@@ -1,51 +1,25 @@
 /**
- * Пакет Control — Калькулятори та Перевірка надійності бази
- * Реалізує:
- * - UC4 «Розрахувати переробку ресурсів» (RecycleCalculator <<Control>>)
- * - UC5 «Розрахувати вибухівку та ресурси для рейду» (RaidCalculator <<Control>>)
- * - Перевірка надійності побудови баз (BaseReliabilityAnalyzer <<Control>>)
+ * Пакет Control — Калькулятори та Аналізатор надійності бази
  */
 
-import {
-  IRecycleItem,
-  IRecycleCalculationResult,
-  IStructureType,
-  IExplosiveRecipe,
-  IRaidCalculationResult,
-  IRaidTargetEntry,
-  IRaidMethodSummary,
-} from '../entities/models';
 import {
   SEED_RECYCLE_ITEMS,
   SEED_STRUCTURES,
   SEED_EXPLOSIVE_RECIPES,
-} from '../entities/seedData';
-import { BaseCalculator, InputValidator } from './InputValidator';
+} from '../entities/seedData.js';
+import { BaseCalculator } from './InputValidator.js';
 
-/**
- * Клас RecycleCalculator <<Control>> (наслідує BaseCalculator)
- * Виконує UC4: перевіряє кількість через InputValidator, бере коефіцієнти виходу з RecycleRule
- * та враховує тип переробника (Radtown 60% / Safezone 40%)
- */
 export class RecycleCalculator extends BaseCalculator {
-  private items: IRecycleItem[];
-
-  constructor(items: IRecycleItem[] = SEED_RECYCLE_ITEMS, validator?: InputValidator) {
+  constructor(items = SEED_RECYCLE_ITEMS, validator) {
     super(validator);
     this.items = items;
   }
 
-  public getRules(itemId: number): IRecycleItem | undefined {
+  getRules(itemId) {
     return this.items.find((i) => i.id === itemId);
   }
 
-  /**
-   * Розрахунок переробки одного або декількох предметів (UC4)
-   */
-  public calculate(
-    entries: { itemId: number; quantity: number | string }[],
-    recyclerZone: 'radtown' | 'safezone' = 'radtown'
-  ): IRecycleCalculationResult {
+  calculate(entries, recyclerZone = 'radtown') {
     const startTime = performance.now();
 
     if (!entries || entries.length === 0) {
@@ -62,7 +36,7 @@ export class RecycleCalculator extends BaseCalculator {
       };
     }
 
-    const validatedEntries: { item: IRecycleItem; quantity: number }[] = [];
+    const validatedEntries = [];
 
     for (const entry of entries) {
       const check = this.checkInput(entry.quantity, 1, 10000);
@@ -98,16 +72,10 @@ export class RecycleCalculator extends BaseCalculator {
       validatedEntries.push({ item: rule, quantity: check.normalizedNumber });
     }
 
-    // Коефіцієнт зони: у seedData вказано точний вихід для Радтауна (60%).
-    // Для Safezone (40%) вихід становить 40 / 60 = 2/3 від Радтауна.
     const zoneMultiplier = recyclerZone === 'radtown' ? 1.0 : 40 / 60;
     const cycleSecPerItem = recyclerZone === 'radtown' ? 5 : 8;
 
-    const resourceMap = new Map<
-      string,
-      { resourceId: string; resourceName: string; totalAmount: number; unit: string }
-    >();
-
+    const resourceMap = new Map();
     let totalRecycleTimeSec = 0;
 
     for (const { item, quantity } of validatedEntries) {
@@ -139,8 +107,8 @@ export class RecycleCalculator extends BaseCalculator {
     const elapsedMs = Math.max(0.05, Number((performance.now() - startTime).toFixed(2)));
     const efficiencyLabel =
       recyclerZone === 'radtown'
-        ? 'Радтаун / Монумент (Ефективність 60%, 5с цикл)'
-        : 'Мирна зона Outpost / Bandit (Ефективність 40%, 8с цикл)';
+        ? 'Радтаун / Монумент (60% вихід · 5с/слот)'
+        : 'Мирна зона Outpost / Bandit (40% вихід · 8с/слот)';
 
     const reportText = totalResources
       .map((r) => `${r.resourceName}: ${r.totalAmount} ${r.unit}`)
@@ -159,36 +127,22 @@ export class RecycleCalculator extends BaseCalculator {
   }
 }
 
-/**
- * Клас RaidCalculator <<Control>> (наслідує BaseCalculator)
- * Виконує розрахунок вибухівки та ресурсів для рейду:
- * 1) validate(blocks)
- * 2) computeExplosives(blocks) — Визначення комплексу вибухівки
- * 3) computeRawResources() — Розрахунок потреби базової сировини (сірка, порох, вугілля, метал, паливо)
- */
 export class RaidCalculator extends BaseCalculator {
-  private structures: IStructureType[];
-  private recipes: Record<string, IExplosiveRecipe>;
-
-  constructor(
-    structures: IStructureType[] = SEED_STRUCTURES,
-    recipes: Record<string, IExplosiveRecipe> = SEED_EXPLOSIVE_RECIPES,
-    validator?: InputValidator
-  ) {
+  constructor(structures = SEED_STRUCTURES, recipes = SEED_EXPLOSIVE_RECIPES, validator) {
     super(validator);
     this.structures = structures;
     this.recipes = recipes;
   }
 
-  public getExplosivesPerBlock(structureId: string): IStructureType | undefined {
+  getExplosivesPerBlock(structureId) {
     return this.structures.find((s) => s.id === structureId);
   }
 
-  public getRecipe(explosiveId: string): IExplosiveRecipe | undefined {
+  getRecipe(explosiveId) {
     return this.recipes[explosiveId];
   }
 
-  public computeRawResources(explosiveCounts: { explosiveId: string; count: number }[]) {
+  computeRawResources(explosiveCounts) {
     const totals = {
       sulfur: 0,
       gunpowder: 0,
@@ -218,9 +172,7 @@ export class RaidCalculator extends BaseCalculator {
     return totals;
   }
 
-  public calculate(
-    targetsInput: { structureId: string; blocks: number | string }[]
-  ): IRaidCalculationResult {
+  calculate(targetsInput) {
     const startTime = performance.now();
 
     if (!targetsInput || targetsInput.length === 0) {
@@ -232,12 +184,12 @@ export class RaidCalculator extends BaseCalculator {
         targets: [],
         totalHp: 0,
         methods: [],
-        recommendedMethod: null as unknown as IRaidMethodSummary,
+        recommendedMethod: null,
         reportText: '',
       };
     }
 
-    const validatedTargets: IRaidTargetEntry[] = [];
+    const validatedTargets = [];
     let totalHp = 0;
 
     for (const t of targetsInput) {
@@ -251,7 +203,7 @@ export class RaidCalculator extends BaseCalculator {
           targets: [],
           totalHp: 0,
           methods: [],
-          recommendedMethod: null as unknown as IRaidMethodSummary,
+          recommendedMethod: null,
           reportText: '',
         };
       }
@@ -266,7 +218,7 @@ export class RaidCalculator extends BaseCalculator {
           targets: [],
           totalHp: 0,
           methods: [],
-          recommendedMethod: null as unknown as IRaidMethodSummary,
+          recommendedMethod: null,
           reportText: '',
         };
       }
@@ -275,13 +227,12 @@ export class RaidCalculator extends BaseCalculator {
       totalHp += structure.hp * check.normalizedNumber;
     }
 
-    // Етап 1 стану «Обчислення»: Визначення комплексу вибухівки
     let totalC4 = 0;
     let totalRockets = 0;
     let totalSatchels = 0;
     let totalExplosiveAmmo = 0;
 
-    const optimalAccumulator = new Map<string, number>();
+    const optimalAccumulator = new Map();
 
     for (const { structure, quantity } of validatedTargets) {
       totalC4 += structure.explosivesRequired.c4 * quantity;
@@ -303,11 +254,11 @@ export class RaidCalculator extends BaseCalculator {
       name: this.getRecipe(explosiveId)?.name || explosiveId,
     }));
 
-    // Етап 2 стану «Обчислення»: Розрахунок потреби базової сировини
-    const methods: IRaidMethodSummary[] = [
+    const methods = [
       {
         methodId: 'optimal',
-        methodName: 'Оптимальне комбо (Мінімум сірки)',
+        methodName: 'Оптимальне комбо',
+        workbenchLevel: 3,
         explosiveCounts: optimalList.map((i) => ({ name: i.name, count: i.count })),
         rawResources: this.computeRawResources(
           optimalList.map((i) => ({ explosiveId: i.explosiveId, count: i.count }))
@@ -315,19 +266,22 @@ export class RaidCalculator extends BaseCalculator {
       },
       {
         methodId: 'c4',
-        methodName: 'Чистий рейд через C4',
+        methodName: 'Тільки C4',
+        workbenchLevel: 3,
         explosiveCounts: [{ name: this.recipes.c4.name, count: totalC4 }],
         rawResources: this.computeRawResources([{ explosiveId: 'c4', count: totalC4 }]),
       },
       {
         methodId: 'rockets',
-        methodName: 'Рейд Бойовими Ракетами',
+        methodName: 'Бойові ракети',
+        workbenchLevel: 3,
         explosiveCounts: [{ name: this.recipes.rockets.name, count: totalRockets }],
         rawResources: this.computeRawResources([{ explosiveId: 'rockets', count: totalRockets }]),
       },
       {
         methodId: 'explosiveAmmo',
-        methodName: 'Вибухові патрони 5.56',
+        methodName: 'Вибухові 5.56',
+        workbenchLevel: 3,
         explosiveCounts: [{ name: this.recipes.explosiveAmmo.name, count: totalExplosiveAmmo }],
         rawResources: this.computeRawResources([
           { explosiveId: 'explosiveAmmo', count: totalExplosiveAmmo },
@@ -335,7 +289,8 @@ export class RaidCalculator extends BaseCalculator {
       },
       {
         methodId: 'satchels',
-        methodName: 'Сумки з вибухівкою (Satchel)',
+        methodName: 'Сатчели (Верстак 1)',
+        workbenchLevel: 1,
         explosiveCounts: [{ name: this.recipes.satchels.name, count: totalSatchels }],
         rawResources: this.computeRawResources([{ explosiveId: 'satchels', count: totalSatchels }]),
       },
@@ -360,35 +315,12 @@ export class RaidCalculator extends BaseCalculator {
   }
 }
 
-/**
- * Аналізатор надійності побудови баз (BaseReliabilityAnalyzer)
- * Перевіряє баланс захисту між рейдом через двері та рейдом через стіни/стелю,
- * оцінює стійкість до офлайн-рейду та виявляє слабкі місця конструкції
- */
-export interface IBaseReliabilityAudit {
-  doorPathSulfur: number;
-  wallPathSulfur: number;
-  effectiveMinSulfur: number;
-  weakestVector: 'Коридор дверей' | 'Стіни / Соти (Honeycomb)' | 'Збалансовано';
-  ratingScore: number; // 0..100
-  securityGrade: 'Низька (Стартова)' | 'Середня (Соло/Дуо)' | 'Висока (Укріплена)' | 'Фортеця (Клан)';
-  recommendations: string[];
-}
-
 export class BaseReliabilityAnalyzer {
-  private raidCalc: RaidCalculator;
-
-  constructor(raidCalc: RaidCalculator = new RaidCalculator()) {
+  constructor(raidCalc = new RaidCalculator()) {
     this.raidCalc = raidCalc;
   }
 
-  public auditBaseConfiguration(params: {
-    doorSegments: { structureId: string; count: number }[];
-    wallSegments: { structureId: string; count: number }[];
-    hasBunker: boolean;
-    hasExternalTc: boolean;
-    autoTurretsCount: number;
-  }): IBaseReliabilityAudit {
+  auditBaseConfiguration(params) {
     const doorRes = this.raidCalc.calculate(
       params.doorSegments
         .filter((d) => d.count > 0)
@@ -404,9 +336,8 @@ export class BaseReliabilityAnalyzer {
     let doorPathSulfur = doorRes.isValid ? doorRes.recommendedMethod.rawResources.sulfur : 0;
     const wallPathSulfur = wallRes.isValid ? wallRes.recommendedMethod.rawResources.sulfur : 0;
 
-    // Якщо активовано бункер стабільності з МВК/Металу, вхід у ядро додатково закритий дахом
     if (params.hasBunker) {
-      doorPathSulfur += 8250; // Додаткова металева стеля бункера
+      doorPathSulfur += 8250;
     }
 
     const effectiveMinSulfur =
@@ -414,8 +345,7 @@ export class BaseReliabilityAnalyzer {
         ? Math.min(doorPathSulfur, wallPathSulfur)
         : Math.max(doorPathSulfur, wallPathSulfur);
 
-    let weakestVector: 'Коридор дверей' | 'Стіни / Соти (Honeycomb)' | 'Збалансовано' =
-      'Збалансовано';
+    let weakestVector = 'Збалансовано';
     const delta = Math.abs(doorPathSulfur - wallPathSulfur);
 
     if (delta > 1500) {
@@ -423,19 +353,18 @@ export class BaseReliabilityAnalyzer {
         doorPathSulfur < wallPathSulfur ? 'Коридор дверей' : 'Стіни / Соти (Honeycomb)';
     }
 
-    // Розрахунок рейтингу надійності
     let score = Math.min(65, Math.round(effectiveMinSulfur / 350));
     if (params.hasBunker) score += 12;
     if (params.hasExternalTc) score += 10;
     score += Math.min(13, params.autoTurretsCount * 3);
     score = Math.min(100, Math.max(5, score));
 
-    let securityGrade: IBaseReliabilityAudit['securityGrade'] = 'Низька (Стартова)';
+    let securityGrade = 'Низька (Стартова)';
     if (score >= 85) securityGrade = 'Фортеця (Клан)';
     else if (score >= 60) securityGrade = 'Висока (Укріплена)';
     else if (score >= 35) securityGrade = 'Середня (Соло/Дуо)';
 
-    const recommendations: string[] = [];
+    const recommendations = [];
 
     if (doorPathSulfur < wallPathSulfur - 1500) {
       recommendations.push(
