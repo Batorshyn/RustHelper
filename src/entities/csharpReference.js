@@ -62,6 +62,7 @@ public class Article
     public bool IsOffline => _isOffline;
 
     public string GetContent() => _content;
+    public string GetText() => _content;
 
     public bool Persist()
     {
@@ -115,7 +116,15 @@ public record ExplosiveRecipe(
     int CharcoalPerUnit,
     int MetalFragmentsPerUnit,
     int LowGradeFuelPerUnit
-);`,
+);
+
+public record CalculationResult(string Resources, string Explosives = "")
+{
+    public string ToReport() =>
+        string.IsNullOrEmpty(Explosives)
+            ? $"Ресурси: {Resources}"
+            : $"Вибухівка: {Explosives} | Сировина: {Resources}";
+}`,
   },
   {
     id: 'calculators_cs',
@@ -264,8 +273,17 @@ app.MapPut("/api/articles/{id:int}", (int id, ArticleUpdateDto dto) =>
     return Results.Ok(new { id, updated = true, newPackageVersion = 202612 });
 });
 
+app.MapPut("/api/recycle-rules/{itemId:int}", (int itemId, RecycleRuleUpdateDto dto) =>
+{
+    if (dto.AmountPerUnit < 1 || dto.AmountPerUnit > 10000)
+        return Results.BadRequest(new { error = "Некоректний коефіцієнт переробки" });
+
+    return Results.Ok(new { itemId, dto.ResourceId, dto.AmountPerUnit, updated = true });
+});
+
 app.Run();
 
-public record ArticleUpdateDto(string Title, string Summary, string Content, int CategoryId, string PatchVersion);`,
+public record ArticleUpdateDto(string Title, string Summary, string Content, int CategoryId, string PatchVersion);
+public record RecycleRuleUpdateDto(string ResourceId, int AmountPerUnit);`,
   },
 ];

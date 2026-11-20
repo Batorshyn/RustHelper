@@ -18,6 +18,7 @@ import {
   SearchController,
   ContentManager,
 } from './Controllers.js';
+import { Article, DataPackage, CalculationResult } from '../entities/models.js';
 
 test('InputValidator перевіряє коректні числа та блокує порожні, дробові й негативні значення', () => {
   const validator = new InputValidator();
@@ -142,4 +143,40 @@ test('Довідник, Пошук, Офлайн-збереження, Реда�
   });
   assert.equal(validUpdate.isValid, true);
   assert.ok(validUpdate.savedArticle);
+});
+
+test('Сутності Entities та ContentManager.updateCoefficients відповідають UML-контракту', async () => {
+  const art = new Article({
+    id: 901,
+    title: 'Тестова стаття',
+    summary: 'Анотація тестової статті',
+    content: 'Повний текст статті для перевірки getText та persist.',
+    categoryId: 1,
+    patchVersion: '2026.11',
+    isOffline: false,
+  });
+
+  assert.equal(art.getText(), art.getContent());
+  assert.equal(art.isOffline, false);
+  art.persist();
+  assert.equal(art.isOffline, true);
+
+  const pkg = new DataPackage(202611, 'Patch 2026.11', 2.4, '2026-11-20', [art]);
+  assert.equal(pkg.getVersion(), 202611);
+  pkg.setVersion(202612);
+  assert.equal(pkg.getVersion(), 202612);
+
+  const calcResult = new CalculationResult('8800 сірки', '4× C4');
+  assert.equal(calcResult.toReport(), 'Вибухівка: 4× C4 | Сировина: 8800 сірки');
+
+  const cache = new CacheManager();
+  const api = new ServerApiClient();
+  const admin = new ContentManager(cache, api);
+
+  const badCoeff = await admin.updateCoefficients(1, 'scrap', -10);
+  assert.equal(badCoeff.isValid, false);
+
+  const okCoeff = await admin.updateCoefficients(1, 'scrap', 15);
+  assert.equal(okCoeff.isValid, true);
+  assert.equal(okCoeff.amountPerUnit, 15);
 });

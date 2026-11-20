@@ -255,6 +255,10 @@ export class ServerApiClient {
       return SEED_ARTICLES;
     }
 
+    if (endpoint === '/recycle-rules') {
+      return SEED_RECYCLE_ITEMS;
+    }
+
     throw new Error(`Невідомий ендпоінт: ${endpoint}`);
   }
 
@@ -505,6 +509,45 @@ export class ContentManager {
     return {
       isValid: true,
       savedArticle: saved,
+    };
+  }
+
+  async updateCoefficients(itemId, resourceId, newAmount) {
+    const check = this.validator.checkRange(newAmount, 1, 10000);
+    if (!check.isValid || check.normalizedNumber === undefined) {
+      return {
+        isValid: false,
+        errorMessage: check.errorMessage || 'Некоректний коефіцієнт переробки.',
+      };
+    }
+
+    await this.apiClient.put(`/recycle-rules/${itemId}`, {
+      resourceId,
+      amountPerUnit: check.normalizedNumber,
+    });
+
+    const updated = this.cacheManager.updateRecycleCoefficient(
+      itemId,
+      resourceId,
+      check.normalizedNumber
+    );
+    if (!updated) {
+      return {
+        isValid: false,
+        errorMessage: 'Не знайдено предмет або ресурс для оновлення коефіцієнта.',
+      };
+    }
+
+    const nextVer = this.cacheManager.getVersion() + 1;
+    this.cacheManager.setVersion(nextVer);
+    this.apiClient.setSimulatedServerVersion(nextVer);
+
+    return {
+      isValid: true,
+      itemId,
+      resourceId,
+      amountPerUnit: check.normalizedNumber,
+      version: nextVer,
     };
   }
 }
