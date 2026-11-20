@@ -8,12 +8,14 @@ import {
   Edit3,
   Copy,
   Check,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { CSHARP_BACKEND_FILES } from '../entities/csharpReference.js';
 
 export const AdminArchitectureBoundary = ({
   categories,
   articles,
+  recycleItems = [],
   contentManager,
   packageState,
   packageMeta,
@@ -34,6 +36,62 @@ export const AdminArchitectureBoundary = ({
 
   const [selectedCsFileId, setSelectedCsFileId] = useState(CSHARP_BACKEND_FILES[0].id);
   const [copiedId, setCopiedId] = useState(null);
+
+  const [selectedRuleItemId, setSelectedRuleItemId] = useState(recycleItems[0]?.id || 1);
+  const [selectedResourceId, setSelectedResourceId] = useState(
+    recycleItems[0]?.yields[0]?.resourceId || 'scrap'
+  );
+  const [coeffAmount, setCoeffAmount] = useState(
+    String(recycleItems[0]?.yields[0]?.amountPerUnit || 12)
+  );
+  const [coeffError, setCoeffError] = useState(null);
+  const [coeffSuccess, setCoeffSuccess] = useState(null);
+
+  const activeRuleItem =
+    recycleItems.find((item) => item.id === selectedRuleItemId) || recycleItems[0];
+
+  const handleSelectRuleItem = (itemId) => {
+    setSelectedRuleItemId(itemId);
+    const found = recycleItems.find((i) => i.id === itemId);
+    if (found && found.yields[0]) {
+      setSelectedResourceId(found.yields[0].resourceId);
+      setCoeffAmount(String(found.yields[0].amountPerUnit));
+    }
+    setCoeffError(null);
+    setCoeffSuccess(null);
+  };
+
+  const handleSelectResource = (resId) => {
+    setSelectedResourceId(resId);
+    const yieldObj = activeRuleItem?.yields.find((y) => y.resourceId === resId);
+    if (yieldObj) {
+      setCoeffAmount(String(yieldObj.amountPerUnit));
+    }
+    setCoeffError(null);
+    setCoeffSuccess(null);
+  };
+
+  const handleSubmitCoefficient = async (e) => {
+    e.preventDefault();
+    setCoeffError(null);
+    setCoeffSuccess(null);
+
+    const res = await contentManager.updateCoefficients(
+      selectedRuleItemId,
+      selectedResourceId,
+      coeffAmount
+    );
+
+    if (!res.isValid) {
+      setCoeffError(res.errorMessage || 'Некоректний коефіцієнт переробки.');
+      return;
+    }
+
+    setCoeffSuccess(
+      `Коефіцієнт оновлено до ${res.amountPerUnit} од. (версія бази v${res.version}).`
+    );
+    onArticleSaved();
+  };
 
   const handleSelectArticleToEdit = (art) => {
     setEditingId(art.id);
@@ -111,7 +169,7 @@ export const AdminArchitectureBoundary = ({
           </p>
         </div>
 
-        <div className="flex items-center bg-[#16191e] border border-[#2a303a] rounded-[3px] p-0.5 self-start">
+        <div className="flex flex-wrap items-center bg-[#16191e] border border-[#2a303a] rounded-[3px] p-0.5 self-start gap-0.5">
           <button
             type="button"
             onClick={() => setActiveTab('editor')}
@@ -123,6 +181,18 @@ export const AdminArchitectureBoundary = ({
           >
             <Edit3 className="w-3.5 h-3.5" />
             Редактор довідника
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('rules')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-[2px] transition-colors flex items-center gap-1.5 ${
+              activeTab === 'rules'
+                ? 'bg-[#cd412b] text-white'
+                : 'text-[#8c94a0] hover:text-[#e6e8eb]'
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            Коефіцієнти переробки
           </button>
           <button
             type="button"
@@ -335,6 +405,137 @@ export const AdminArchitectureBoundary = ({
                     className="px-3 py-1.5 bg-[#181c22] hover:bg-[#222730] border border-[#2a303a] rounded-[2px] text-xs text-[#e6e8eb] shrink-0"
                   >
                     Редагувати
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'rules' && (
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-0">
+          <div className="lg:col-span-6 border-b lg:border-b-0 lg:border-r border-[#262b33] p-5 sm:p-7 space-y-5">
+            <div className="pb-3 border-b border-[#20242b]">
+              <h2 className="text-lg font-bold text-[#f1f3f5] font-display">
+                Редагування норм переробника (60% Радтаун)
+              </h2>
+              <p className="text-xs text-[#8c94a0] mt-1">
+                Зміни зберігаються через API PUT /api/recycle-rules та миттєво застосовуються в калькуляторі
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmitCoefficient} className="space-y-4" noValidate>
+              <div>
+                <label htmlFor="rule-item-select" className="block text-xs text-[#8c94a0] mb-1">
+                  Компонент
+                </label>
+                <select
+                  id="rule-item-select"
+                  value={selectedRuleItemId}
+                  onChange={(e) => handleSelectRuleItem(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-[#15181c] border border-[#2a303a] rounded-[3px] text-sm text-[#f1f3f5] focus:outline-none focus:border-[#cd412b] min-h-[40px]"
+                >
+                  {recycleItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="rule-resource-select" className="block text-xs text-[#8c94a0] mb-1">
+                    Вихідний ресурс
+                  </label>
+                  <select
+                    id="rule-resource-select"
+                    value={selectedResourceId}
+                    onChange={(e) => handleSelectResource(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#15181c] border border-[#2a303a] rounded-[3px] text-sm text-[#f1f3f5] focus:outline-none focus:border-[#cd412b] min-h-[40px]"
+                  >
+                    {(activeRuleItem?.yields || []).map((y) => (
+                      <option key={y.resourceId} value={y.resourceId}>
+                        {y.resourceName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="rule-amount-input" className="block text-xs text-[#8c94a0] mb-1">
+                    Вихід за 1 шт. (1–10 000)
+                  </label>
+                  <input
+                    id="rule-amount-input"
+                    type="number"
+                    value={coeffAmount}
+                    onChange={(e) => setCoeffAmount(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#15181c] border border-[#2a303a] rounded-[3px] text-sm font-mono tabular-nums text-[#f1f3f5] focus:outline-none focus:border-[#cd412b] min-h-[40px]"
+                  />
+                </div>
+              </div>
+
+              {coeffError && (
+                <div
+                  role="alert"
+                  className="px-3.5 py-2.5 bg-red-950/40 border border-red-800/70 rounded-[3px] flex items-center gap-2 text-xs text-red-300"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                  <span>{coeffError}</span>
+                </div>
+              )}
+
+              {coeffSuccess && (
+                <div
+                  role="status"
+                  className="px-3.5 py-2.5 bg-[#15221a] border border-emerald-800/70 rounded-[3px] flex items-center gap-2 text-xs text-emerald-300"
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                  <span>{coeffSuccess}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#cd412b] hover:bg-[#de4b34] text-white text-xs font-semibold rounded-[3px] transition-colors min-h-[40px]"
+              >
+                Зберегти коефіцієнт
+              </button>
+            </form>
+          </div>
+
+          <div className="lg:col-span-6 p-5 sm:p-7 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#20242b]">
+              <h3 className="text-base font-bold text-[#f1f3f5] font-display">
+                Поточна таблиця правил ({recycleItems.length})
+              </h3>
+              <span className="text-xs font-mono tabular-nums text-[#8c94a0]">
+                Пакет v{packageMeta.version}
+              </span>
+            </div>
+
+            <div className="divide-y divide-[#1e2229] border border-[#262b33] rounded-[3px] max-h-[460px] overflow-y-auto">
+              {recycleItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-[#13161a]"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-[#e6e8eb] truncate">{item.name}</div>
+                    <div className="text-xs font-mono tabular-nums text-[#8c94a0] mt-0.5">
+                      {item.yields
+                        .map((y) => `${y.amountPerUnit} ${y.resourceName.split(' ')[0]}`)
+                        .join(' · ')}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectRuleItem(item.id)}
+                    className="px-3 py-1.5 bg-[#181c22] hover:bg-[#222730] border border-[#2a303a] rounded-[2px] text-xs text-[#e6e8eb] shrink-0"
+                  >
+                    Змінити
                   </button>
                 </div>
               ))}

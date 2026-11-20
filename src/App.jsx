@@ -101,6 +101,10 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [refreshTick]
   );
+  const activeRecycleCalculator = useMemo(
+    () => new RecycleCalculator(recycleItems),
+    [recycleItems]
+  );
   const packageMeta = useMemo(
     () => services.cacheManager.getPackageSummary(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -348,7 +352,7 @@ export default function App() {
           {activeSection === 'recycle' && (
             <RecycleBoundary
               items={recycleItems}
-              calculator={services.recycleCalculator}
+              calculator={activeRecycleCalculator}
               initialItemId={jumpRecycleId}
             />
           )}
@@ -369,6 +373,7 @@ export default function App() {
             <AdminArchitectureBoundary
               categories={categories}
               articles={articles}
+              recycleItems={recycleItems}
               contentManager={services.contentManager}
               packageState={packageState}
               packageMeta={packageMeta}
