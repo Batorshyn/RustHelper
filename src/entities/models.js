@@ -85,6 +85,10 @@ export class Article {
     return this._content;
   }
 
+  getText() {
+    return this._content;
+  }
+
   persist() {
     this._isOffline = true;
     return true;
@@ -137,3 +141,89 @@ export class DataPackage {
     return this._articles;
   }
 }
+
+export class Item {
+  constructor(id, name) {
+    this._id = id;
+    this._name = name;
+  }
+
+  get id() {
+    return this._id;
+  }
+  get name() {
+    return this._name;
+  }
+}
+
+export class RecycleRule {
+  constructor(itemId, resource, yieldCoefficient) {
+    this._itemId = itemId;
+    this._resource = resource;
+    this._yieldCoefficient = yieldCoefficient;
+  }
+
+  get itemId() {
+    return this._itemId;
+  }
+  get resource() {
+    return this._resource;
+  }
+  get yieldCoefficient() {
+    return this._yieldCoefficient;
+  }
+}
+
+export class ExplosiveRecipe {
+  constructor(name, craftProportions) {
+    this._name = name;
+    this._craftProportions = craftProportions;
+  }
+
+  get name() {
+    return this._name;
+  }
+  get craftProportions() {
+    return this._craftProportions;
+  }
+}
+
+export class StructureType {
+  constructor(name, material, explosivesPerBlock) {
+    this._name = name;
+    this._material = material;
+    this._explosivesPerBlock = explosivesPerBlock;
+  }
+
+  get name() {
+    return this._name;
+  }
+  get material() {
+    return this._material;
+  }
+  get explosivesPerBlock() {
+    return this._explosivesPerBlock;
+  }
+}
+
+export class CalculationResult {
+  constructor(resources, explosives = '') {
+    this._resources = resources;
+    this._explosives = explosives;
+  }
+
+  get resources() {
+    return this._resources;
+  }
+  get explosives() {
+    return this._explosives;
+  }
+
+  toReport() {
+    if (this._explosives) {
+      return `Вибухівка: ${this._explosives} | Сировина: ${this._resources}`;
+    }
+    return `Ресурси: ${this._resources}`;
+  }
+}
+
